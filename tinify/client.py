@@ -1,27 +1,28 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import sys
-import os
+import json
 import platform
-import requests
-import requests.exceptions
-import traceback
+
+import aiohttp
 
 import tinify
 from .errors import ConnectionError, Error
 
+
 class Client(object):
     API_ENDPOINT = 'https://api.tinify.com'
-    USER_AGENT = 'Tinify/{0} Python/{1} ({2})'.format(tinify.__version__, platform.python_version(), platform.python_implementation())
+    USER_AGENT = 'Tinify/{0} Python/{1} ({2})'.format(tinify.__version__, platform.python_version(),
+                                                      platform.python_implementation())
 
     def __init__(self, key, app_identifier=None):
-        self.session = requests.sessions.Session()
-        self.session.auth = ('api', key)
-        self.session.headers = {
-            'user-agent': self.USER_AGENT + ' ' + app_identifier if app_identifier else self.USER_AGENT,
-        }
-        self.session.verify = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data', 'cacert.pem')
+
+        self.key = key
+        self.app_identifier = app_identifier
+
+
+        # Fixme - implement cert handling with aiohttp
+        # self.session.verify = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data', 'cacert.pem')
 
     def __enter__(self):
         return self
@@ -30,23 +31,38 @@ class Client(object):
         self.close()
 
     def close(self):
-        self.session.close()
+        pass
 
-    def request(self, method, url, body=None, header={}):
+    async def request(self, method, url, body=None, header={}):
+        session = aiohttp.ClientSession(
+            auth=aiohttp.BasicAuth('api', self.key),
+            headers=(('user-agent', self.USER_AGENT + ' ' + self.app_identifier if self.app_identifier else self.USER_AGENT),)
+        )
+
         url = url if url.lower().startswith('https://') else self.API_ENDPOINT + url
         params = {}
         if isinstance(body, dict):
             if body:
-                params['json'] = body
+                params['data'] = json.dumps(body)
+                params['headers'] = (('content-type', 'application/json'), )
         elif body:
             params['data'] = body
 
         try:
-            response = self.session.request(method, url, **params)
-        except requests.exceptions.Timeout as err:
-            raise ConnectionError('Timeout while connecting', cause=err)
+            response = await session.request(method, url, **params)
         except Exception as err:
-            raise ConnectionError('Error while connecting: {0}'.format(err), cause=err)
+            raise ConnectionError('Connection error', cause=err)
+        finally:
+            session.close()
+
+        # Do some adjustment to look like Requests like response
+        response.content = (await response.content.read()).decode('utf-8')
+        response.close()
+        response.status_code = response.status
+        if 300 > response.status_code >= 200:
+            response.ok = True
+        else:
+            response.ok = False
 
         count = response.headers.get('compression-count')
         if count:
@@ -57,7 +73,7 @@ class Client(object):
         else:
             details = None
             try:
-                details = response.json()
+                details = json.loads(response.content)
             except Exception as err:
-                details = { 'message': 'Error while parsing response: {0}'.format(err), 'error': 'ParseError' }
+                details = {'message': 'Error while parsing response: {0}'.format(err), 'error': 'ParseError'}
             raise Error.create(details.get('message'), details.get('error'), response.status_code)

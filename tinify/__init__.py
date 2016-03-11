@@ -55,9 +55,9 @@ class tinify(object):
     def __getattr__(self, attr):
         return getattr(self._module, attr)
 
-    def validate(self):
+    async def validate(self):
         try:
-            self.get_client().request('post', '/shrink')
+            await self.get_client().request('post', '/shrink')
         except ClientError:
             return True
 

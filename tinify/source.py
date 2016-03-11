@@ -6,24 +6,24 @@ from . import Result, ResultMeta
 
 class Source(object):
     @classmethod
-    def from_file(cls, path):
+    async def from_file(cls, path):
         if hasattr(path, 'read'):
-            return cls._shrink(path)
+            return await cls._shrink(path)
         else:
             with open(path, 'rb') as f:
-                return cls._shrink(f.read())
+                return await cls._shrink(f.read())
 
     @classmethod
-    def from_buffer(cls, string):
-        return cls._shrink(string)
+    async def from_buffer(cls, string):
+        return await cls._shrink(string)
 
     @classmethod
-    def from_url(cls, url):
-        return cls._shrink({ "source": { "url": url } })
+    async def from_url(cls, url):
+        return await cls._shrink({ "source": { "url": url } })
 
     @classmethod
-    def _shrink(cls, obj):
-        response = tinify.get_client().request('POST', '/shrink', obj)
+    async def _shrink(cls, obj):
+        response = await tinify.get_client().request('POST', '/shrink', obj)
         return cls(response.headers.get('location'))
 
     def __init__(self, url, **commands):
@@ -33,19 +33,19 @@ class Source(object):
     def resize(self, **options):
         return type(self)(self.url, **self._merge_commands(resize=options))
 
-    def store(self, **options):
-        response = tinify.get_client().request('POST', self.url, self._merge_commands(store=options))
+    async def store(self, **options):
+        response = await tinify.get_client().request('POST', self.url, self._merge_commands(store=options))
         return ResultMeta(response.headers)
 
-    def result(self):
-        response = tinify.get_client().request('GET', self.url, self.commands)
+    async def result(self):
+        response = await tinify.get_client().request('GET', self.url, self.commands)
         return Result(response.headers, response.content)
 
-    def to_file(self, path):
-        return self.result().to_file(path)
+    async def to_file(self, path):
+        return (await self.result()).to_file(path)
 
-    def to_buffer(self):
-        return self.result().to_buffer()
+    async def to_buffer(self):
+        return (await self.result()).to_buffer()
 
     def _merge_commands(self, **options):
         commands = type(self.commands)(self.commands)

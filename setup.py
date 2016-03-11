@@ -19,7 +19,7 @@ if sys.version_info < (3, 3):
 setup(
     name='tinify',
     version=__version__,
-    description='Tinify API client.',
+    description='Tinify API client (python async version).',
     author='Jacob Middag',
     author_email='jacobmiddag@voormedia.com',
     license='MIT',
@@ -32,7 +32,7 @@ setup(
         'tinify': ['data/cacert.pem'],
     },
 
-    install_requires=['requests'],
+    install_requires=['aiohttp'],
     tests_require=tests_require,
     extras_require={'test': tests_require},
 
@@ -42,10 +42,6 @@ setup(
         'Natural Language :: English',
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2.6',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.4'
+        'Programming Language :: Python :: 3.5'
     ),
 )
