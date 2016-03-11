@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import os
 import threading
 import sys
 
@@ -10,7 +11,7 @@ class tinify(object):
         self._lock = threading.RLock()
 
         self._client = None
-        self._key = None
+        self._key = os.environ.get('TINIFY_KEY')
         self._app_identifier = None
         self._compression_count = None
 
